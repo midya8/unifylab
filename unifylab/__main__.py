@@ -8,6 +8,7 @@ import tempfile
 from .core import solve
 from .verify import verify
 from .subsets import analyze
+from .generalization import generalize,verify_generalization
 
 
 def unique_object(pairs):
@@ -22,13 +23,15 @@ def unique_object(pairs):
 def main(argv=None):
     p=argparse.ArgumentParser(description='Finite first-order unification and rewrite-certificate verification')
     modes=p.add_mutually_exclusive_group()
+    modes.add_argument('--generalize',action='store_true',help='least-general generalization of two finite ground terms')
+    modes.add_argument('--verify-generalization',action='store_true',help='check a canonical ground generalization trace without generating it')
     modes.add_argument('--subsets',action='store_true',help='enumerate indexed equation subsets, minimal conflicts and deletion repairs')
     modes.add_argument('--verify',action='store_true',help='check a supplied rewrite certificate without calling solve')
     p.add_argument('input',help='JSON path or - for stdin')
     p.add_argument('-o','--output',help='output JSON path; default stdout')
     args=p.parse_args(argv)
     try:
-        byte_limit=67108864 if args.verify else 65536
+        byte_limit=67108864 if args.verify or args.verify_generalization else 65536
         if args.input=='-': raw=sys.stdin.buffer.read(byte_limit+1)
         else:
             with open(args.input,'rb') as stream:raw=stream.read(byte_limit+1)
@@ -36,7 +39,7 @@ def main(argv=None):
             raise ValueError('input exceeds '+str(byte_limit)+' UTF-8 bytes')
         data=json.loads(raw.decode('utf-8'),object_pairs_hook=unique_object,
                         parse_constant=lambda x: (_ for _ in ()).throw(ValueError('nonfinite JSON constant')))
-        result={'valid':verify(data)} if args.verify else analyze(data) if args.subsets else solve(data)
+        result=({'valid':verify(data)} if args.verify else {'valid':verify_generalization(data)} if args.verify_generalization else generalize(data) if args.generalize else analyze(data) if args.subsets else solve(data))
         text=json.dumps(result,ensure_ascii=True,allow_nan=False,indent=2)+'\n'
         if args.output:
             target=Path(args.output)

@@ -50,3 +50,10 @@ Established finite-tree syntactic unification, not a new algorithm. Six variable
 [Equation-subset inspector](https://midya8.github.io/unifylab/cores.html) · [Subset method and eight inspected sources](SUBSETS.md)
 
 Run `python -m unifylab --subsets examples/equations.json`. Every indexed subset is solved independently. Confirmed inclusion-minimal conflicts show successful single deletions; confirmed deletion repairs list indices to remove and failing restorations. Duplicate equations keep separate identities. Minimal is not minimum-cardinality. A resource limit stays unknown and withholds completeness and minimum-size claims; an aggregate summary is not a base rewrite certificate. Any selected subsystem opens in the existing rewrite inspector for its detailed trace.
+
+
+## Generalize two terms without losing repeated differences
+
+[Ground-term generalization inspector](https://midya8.github.io/unifylab/generalize.html) · [Generalization method and inspected sources](GENERALIZATION.md)
+
+`python -m unifylab --generalize terms.json -o generalization.json` retains common constructors and reuses one variable for each repeated ordered disagreement pair. Both exact reconstruction maps and every postorder node remain inspectable. `python -m unifylab --verify-generalization generalization.json` checks the supplied canonical trace without calling its generator. Two reconstructions alone do not establish least-generality: a fresh-per-position trace can reconstruct yet lose a shared equality. Finite **ground inputs only**, distinct from the solver's variable-bearing equations. Established Plotkin/Reynolds anti-unification, not a new algorithm or code-repair system.

@@ -1,5 +1,5 @@
 import sys,json,pathlib,subprocess,importlib
-root=pathlib.Path(sys.argv[1]);expected=json.loads(pathlib.Path(sys.argv[2]).read_text());modules=['unifylab','unifylab.core','unifylab.verify','unifylab.__main__','unifylab.subsets'];origins={}
+root=pathlib.Path(sys.argv[1]);expected=json.loads(pathlib.Path(sys.argv[2]).read_text());modules=['unifylab','unifylab.core','unifylab.verify','unifylab.__main__','unifylab.subsets','unifylab.generalization'];origins={}
 for name in modules:
  p=pathlib.Path(importlib.import_module(name).__file__).resolve();assert not p.is_relative_to(root),p;origins[name]=str(p)
 from unifylab import solve,verify
@@ -17,3 +17,12 @@ for item in subset_expected:
  for command in [[sys.executable,"-m","unifylab"],["unifylab"]]:
   out=subprocess.run(command+["--subsets","-"],input=json.dumps(item["input"]),text=True,capture_output=True,check=True);assert json.loads(out.stdout)==item["report"]
 print(json.dumps({"installed_subset_audits":len(subset_expected),"module_origins":origins,"CLIs":2,"modes":["solve","verify","subsets"]}))
+
+from unifylab.generalization import generalize,verify_generalization
+expected_generalizations=json.loads(pathlib.Path(sys.argv[2]+'.generalizations').read_text())
+for item in expected_generalizations:
+ assert generalize(item['input'])==item['report'];assert verify_generalization(item['report'])
+ for command in [[sys.executable,'-m','unifylab'],['unifylab']]:
+  out=subprocess.run(command+['--generalize','-'],input=json.dumps(item['input']),text=True,capture_output=True,check=True);assert json.loads(out.stdout)==item['report']
+  out=subprocess.run(command+['--verify-generalization','-'],input=json.dumps(item['report']),text=True,capture_output=True,check=True);assert json.loads(out.stdout)=={'valid':True}
+print(json.dumps({'installed_generalizations':len(expected_generalizations),'module_origins':origins,'CLIs':2,'modes':['generalize','verify-generalization']}))
