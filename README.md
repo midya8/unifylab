@@ -43,3 +43,10 @@ Seventeen controls retain 38 rewrites: eleven successes, four non-unifiable task
 ## Scope
 
 Established finite-tree syntactic unification, not a new algorithm. Six variables/eight equations, input depth six, arity at most two and 96 input nodes. Composed states and the applied-original result each have a 4,096-node budget; at most 256 steps. This expanded-tree implementation can be expensive. Resource limits never imply non-unifiability. No rational trees, higher-order/AC unification, quantified formulas, resolution prover, linear-time claim or benchmark win. See METHOD.md for checker scope, JSON differences, attribution and exact limits.
+
+
+## Which equations explain the conflict?
+
+[Equation-subset inspector](https://midya8.github.io/unifylab/cores.html) · [Subset method and eight inspected sources](SUBSETS.md)
+
+Run `python -m unifylab --subsets examples/equations.json`. Every indexed subset is solved independently. Confirmed inclusion-minimal conflicts show successful single deletions; confirmed deletion repairs list indices to remove and failing restorations. Duplicate equations keep separate identities. Minimal is not minimum-cardinality. A resource limit stays unknown and withholds completeness and minimum-size claims; an aggregate summary is not a base rewrite certificate. Any selected subsystem opens in the existing rewrite inspector for its detailed trace.
