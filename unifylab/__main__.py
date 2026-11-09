@@ -7,6 +7,7 @@ import sys
 import tempfile
 from .core import solve
 from .verify import verify
+from .subsets import analyze
 
 
 def unique_object(pairs):
@@ -20,7 +21,9 @@ def unique_object(pairs):
 
 def main(argv=None):
     p=argparse.ArgumentParser(description='Finite first-order unification and rewrite-certificate verification')
-    p.add_argument('--verify',action='store_true',help='check a supplied rewrite certificate without calling solve')
+    modes=p.add_mutually_exclusive_group()
+    modes.add_argument('--subsets',action='store_true',help='enumerate indexed equation subsets, minimal conflicts and deletion repairs')
+    modes.add_argument('--verify',action='store_true',help='check a supplied rewrite certificate without calling solve')
     p.add_argument('input',help='JSON path or - for stdin')
     p.add_argument('-o','--output',help='output JSON path; default stdout')
     args=p.parse_args(argv)
@@ -33,7 +36,7 @@ def main(argv=None):
             raise ValueError('input exceeds '+str(byte_limit)+' UTF-8 bytes')
         data=json.loads(raw.decode('utf-8'),object_pairs_hook=unique_object,
                         parse_constant=lambda x: (_ for _ in ()).throw(ValueError('nonfinite JSON constant')))
-        result={'valid':verify(data)} if args.verify else solve(data)
+        result={'valid':verify(data)} if args.verify else analyze(data) if args.subsets else solve(data)
         text=json.dumps(result,ensure_ascii=True,allow_nan=False,indent=2)+'\n'
         if args.output:
             target=Path(args.output)
