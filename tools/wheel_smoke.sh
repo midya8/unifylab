@@ -7,8 +7,10 @@ cd "$root"
 python - "$scratch/expected.json" <<'PY'
 import json,sys
 from unifylab import solve
+from unifylab.subsets import analyze
 cs=json.load(open('docs/controls.json'))
 json.dump([{'input':c['input'],'report':solve(c['input'])} for c in cs],open(sys.argv[1],'w'))
+json.dump([{'input':c['input'],'report':analyze(c['input'])} for c in json.load(open('docs/subset-controls.json'))],open(sys.argv[1]+'.subsets','w'))
 PY
 uv build --wheel --out-dir "$scratch/dist"
 uv venv "$scratch/env"
