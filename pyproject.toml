@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "unifylab"
+version = "0.1.0"
+description = "Finite first-order unification with independently checked rewrite witnesses"
+requires-python = ">=3.10"
+license = "MIT"
+[project.scripts]
+unifylab = "unifylab.__main__:main"
+[tool.setuptools]
+packages = ["unifylab"]
