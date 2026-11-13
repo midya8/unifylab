@@ -1,5 +1,5 @@
 'use strict';
-const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),{spawn,execFileSync}=require('node:child_process'),{waitForDebugger}=require('./chrome_support.cjs');
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),{spawn,execFileSync}=require('node:child_process'),{waitForDebugger,navigateAndWaitForLoad}=require('./chrome_support.cjs');
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 function compare(a,b,p='root'){assert.equal(typeof a,typeof b,p);if(typeof a==='number')assert.ok(Number.isFinite(b)&&Math.abs(a-b)<=1e-5*Math.max(1,Math.abs(a),Math.abs(b)),p+' expected '+a+' actual '+b);else if(a===null||typeof a!=='object')assert.equal(a,b,p);else{assert.deepEqual(Object.keys(a).sort(),Object.keys(b).sort(),p);for(const k of Object.keys(a))compare(a[k],b[k],p+'.'+k);}}
 test('actual Chrome every unification rewrite and result',{timeout:180000},async()=>{
@@ -29,4 +29,36 @@ test('actual Chrome every unification rewrite and result',{timeout:180000},async
  console.log(JSON.stringify({controls:controls.length,rewrites,widths:[320,390,1280]}));
  if(process.env.UNIFY_SCREENSHOT){await set('preset',Number(process.env.UNIFY_PRESET||0));if(process.env.UNIFY_STEP)await set('step',process.env.UNIFY_STEP);const width=Number(process.env.UNIFY_WIDTH||390);await call('Emulation.setDeviceMetricsOverride',{width,height:1200,deviceScaleFactor:1,mobile:width<700});await js('document.activeElement.blur();window.scrollTo(0,0);document.querySelectorAll("textarea").forEach(e=>e.scrollTop=0);new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');console.log('PIXEL_REGIONS '+JSON.stringify(await js('Object.fromEntries(["summary","substitution","applied","step-before","step-after","bindings-before","bindings-after","witness","final","final-bindings"].map(id=>{const r=document.getElementById(id).getBoundingClientRect();return [id,{y:r.y+scrollY,height:r.height}]}))')));const m=await call('Page.getLayoutMetrics'),image=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip:{x:0,y:0,width,height:m.cssContentSize.height,scale:1}});fs.writeFileSync(process.env.UNIFY_SCREENSHOT,Buffer.from(image.data,'base64'));}
  }finally{server.close();if(ws)ws.close();if(browser.pid&&browser.exitCode===null){browser.kill('SIGTERM');await new Promise(r=>browser.once('exit',r));}await fs.promises.rm(profile,{recursive:true,force:true,maxRetries:10,retryDelay:200});}
+});
+
+class Socket extends EventTarget{
+ send(method){this.dispatchEvent(new MessageEvent('message',{data:JSON.stringify({method})}));}
+}
+const tick=()=>new Promise(resolve=>setImmediate(resolve));
+test('load listener is armed before a navigation acknowledgement',async()=>{
+ const socket=new Socket();let reads=0;
+ const result=await navigateAndWaitForLoad(socket,async()=>{socket.send('Page.loadEventFired');await tick();return {frameId:'new-document'};});
+ reads++;assert.deepEqual(result,{frameId:'new-document'});assert.equal(reads,1);
+});
+test('navigation acknowledgement never permits an old-document read',async()=>{
+ const socket=new Socket();let reads=0;
+ const done=navigateAndWaitForLoad(socket,async()=>({frameId:'new-document'})).then(()=>reads++);
+ await tick();socket.send('Page.frameNavigated');await tick();assert.equal(reads,0);
+ socket.send('Page.loadEventFired');await done;assert.equal(reads,1);
+});
+test('missing page load is a failure rather than a successful readiness check',async()=>{
+ await assert.rejects(navigateAndWaitForLoad(new Socket(),async()=>({frameId:'new-document'}),{timeoutMs:5}),/Page load did not complete/);
+});
+test('navigation failure propagates without retrying the action',async()=>{
+ let calls=0;await assert.rejects(navigateAndWaitForLoad(new Socket(),async()=>{calls++;throw new Error('navigation refused');}),/navigation refused/);assert.equal(calls,1);
+});
+test('closed or failed socket rejects navigation readiness',async()=>{
+ for(const kind of ['close','error']){const socket=new Socket();const done=navigateAndWaitForLoad(socket,async()=>{});socket.dispatchEvent(new Event(kind));await assert.rejects(done,/Chrome (closed|socket failed)/);}
+});
+test('listeners are removed and later assertion failures remain failures',async()=>{
+ const socket=new Socket();let additions=0,removals=0;
+ const add=socket.addEventListener.bind(socket),remove=socket.removeEventListener.bind(socket);
+ socket.addEventListener=(...args)=>{additions++;add(...args);};socket.removeEventListener=(...args)=>{removals++;remove(...args);};
+ await navigateAndWaitForLoad(socket,async()=>socket.send('Page.loadEventFired'));assert.equal(additions,3);assert.equal(removals,3);
+ assert.throws(()=>assert.deepEqual({certificate:'bad'},{certificate:'expected'}),assert.AssertionError);
 });
