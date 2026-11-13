@@ -10,3 +10,21 @@ async function waitForDebugger(url,{fetchFn=globalThis.fetch,sleep=ms=>new Promi
  throw new Error('Chrome debugger endpoint did not become ready: '+(last?.message||'browser exited'),{cause:last});
 }
 module.exports={waitForDebugger};
+
+// Arm the main-page load event before navigation. A navigation acknowledgement
+// alone does not make the old execution context safe to inspect.
+async function navigateAndWaitForLoad(socket,navigate,{timeoutMs=30000}={}){
+ let timer,onMessage,onClose,onError;
+ const loaded=new Promise((resolve,reject)=>{
+  onMessage=e=>{const message=JSON.parse(e.data);if(message.method==='Page.loadEventFired')resolve();};
+  onClose=()=>reject(new Error('Chrome closed during navigation'));
+  onError=()=>reject(new Error('Chrome socket failed during navigation'));
+  socket.addEventListener('message',onMessage);
+  socket.addEventListener('close',onClose);
+  socket.addEventListener('error',onError);
+  timer=setTimeout(()=>reject(new Error('Page load did not complete after navigation')),timeoutMs);
+ });
+ try{const [result]=await Promise.all([Promise.resolve().then(navigate),loaded]);return result;}
+ finally{clearTimeout(timer);socket.removeEventListener('message',onMessage);socket.removeEventListener('close',onClose);socket.removeEventListener('error',onError);}
+}
+module.exports.navigateAndWaitForLoad=navigateAndWaitForLoad;
